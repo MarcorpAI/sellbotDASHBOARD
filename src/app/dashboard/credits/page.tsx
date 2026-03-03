@@ -23,7 +23,7 @@ export default function CreditsPage() {
         setBundles(bun);
         setTransactions(txs);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
@@ -35,7 +35,9 @@ export default function CreditsPage() {
         { bundle_id: bundleId }
       );
       window.open(res.authorization_url, "_blank");
-    } catch {}
+    } catch (err: any) {
+      alert("Failed to initialize purchase: " + (err.message || "Unknown error"));
+    }
     setPurchasing(false);
   }
 
@@ -49,6 +51,9 @@ export default function CreditsPage() {
         <p className="text-sm text-gray-500">Current Balance</p>
         <p className="mt-2 text-5xl font-bold text-primary-600">{balance}</p>
         <p className="mt-1 text-sm text-gray-500">credits</p>
+        <div className="mt-4 rounded bg-blue-50 p-2 text-xs text-blue-700">
+          💡 <b>Tip:</b> If your credits are exhausted, your AI agent will stop responding to customers.
+        </div>
       </div>
 
       <h2 className="mb-4 text-lg font-semibold">Buy Credits</h2>
@@ -72,8 +77,11 @@ export default function CreditsPage() {
               disabled={purchasing}
               className="mt-4 w-full rounded-md bg-primary-600 px-4 py-2 text-sm text-white hover:bg-primary-700 disabled:opacity-50"
             >
-              Buy
+              {purchasing ? "Processing..." : "Buy Now"}
             </button>
+            <p className="mt-2 text-[10px] text-gray-400">
+              Opens Paystack in a new window. Ensure popups are allowed.
+            </p>
           </div>
         ))}
       </div>
@@ -99,9 +107,8 @@ export default function CreditsPage() {
                     {tx.type.replace("_", " ")}
                   </td>
                   <td
-                    className={`px-4 py-3 font-medium ${
-                      tx.amount > 0 ? "text-green-600" : "text-red-600"
-                    }`}
+                    className={`px-4 py-3 font-medium ${tx.amount > 0 ? "text-green-600" : "text-red-600"
+                      }`}
                   >
                     {tx.amount > 0 ? "+" : ""}
                     {tx.amount}

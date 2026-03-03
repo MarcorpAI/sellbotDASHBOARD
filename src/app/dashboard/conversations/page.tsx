@@ -17,7 +17,7 @@ export default function ConversationsPage() {
     api
       .get<Conversation[]>("/api/conversations")
       .then(setConversations)
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
@@ -28,7 +28,7 @@ export default function ConversationsPage() {
         `/api/conversations/${id}/messages`
       );
       setMessages(msgs);
-    } catch {}
+    } catch { }
   }
 
   async function sendReply() {
@@ -40,7 +40,7 @@ export default function ConversationsPage() {
       });
       setReply("");
       await loadMessages(selectedId);
-    } catch {}
+    } catch { }
     setSending(false);
   }
 
@@ -63,9 +63,8 @@ export default function ConversationsPage() {
                 <button
                   key={conv.id}
                   onClick={() => loadMessages(conv.id)}
-                  className={`w-full p-3 text-left hover:bg-gray-50 ${
-                    selectedId === conv.id ? "bg-primary-50" : ""
-                  }`}
+                  className={`w-full p-3 text-left hover:bg-gray-50 ${selectedId === conv.id ? "bg-primary-50" : ""
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium truncate">
@@ -94,32 +93,45 @@ export default function ConversationsPage() {
         <div className="flex-1 rounded-lg bg-white shadow-sm">
           {selectedId ? (
             <div className="flex h-[70vh] flex-col">
-              <div className="border-b p-4">
-                <h3 className="text-sm font-semibold">
-                  Conversation {selectedId.slice(0, 8)}...
-                </h3>
-                {selectedConversation && (
-                  <span
-                    className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusColor(
-                      selectedConversation.status
-                    )}`}
-                  >
-                    {selectedConversation.status}
-                  </span>
-                )}
+              <div className="flex items-center justify-between border-b p-4">
+                <div>
+                  <h3 className="text-sm font-semibold">
+                    Conversation {selectedId.slice(0, 8)}...
+                  </h3>
+                  {selectedConversation && (
+                    <span
+                      className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusColor(
+                        selectedConversation.status
+                      )}`}
+                    >
+                      {selectedConversation.status}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={async () => {
+                    if (confirm("Are you sure you want to reset this chat? All AI memory for this customer will be cleared.")) {
+                      await api.delete(`/api/conversations/${selectedId}/reset`);
+                      setMessages([]);
+                      await loadMessages(selectedId);
+                    }
+                  }}
+                  className="text-xs text-red-600 hover:text-red-800 font-medium"
+                >
+                  Reset Chat
+                </button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
-                    className={`max-w-[80%] rounded-lg p-3 text-sm ${
-                      msg.role === "customer"
+                    className={`max-w-[80%] rounded-lg p-3 text-sm ${msg.role === "customer"
                         ? "bg-gray-100 self-start"
                         : msg.role === "agent"
-                        ? "bg-primary-100 ml-auto"
-                        : "bg-yellow-50 mx-auto text-center text-xs"
-                    }`}
+                          ? "bg-primary-100 ml-auto"
+                          : "bg-yellow-50 mx-auto text-center text-xs"
+                      }`}
                   >
                     <p className="text-xs font-medium text-gray-500 mb-1">
                       {msg.role}

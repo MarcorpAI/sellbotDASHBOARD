@@ -15,6 +15,7 @@ export default function ProductsPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [weightKg, setWeightKg] = useState("0.5");
   const [imageUrl, setImageUrl] = useState("");
   const [formLoading, setFormLoading] = useState(false);
 
@@ -26,7 +27,7 @@ export default function ProductsPage() {
     api
       .get<Product[]>("/api/products")
       .then(setProducts)
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }
 
@@ -35,6 +36,7 @@ export default function ProductsPage() {
     setName("");
     setDescription("");
     setPrice("");
+    setWeightKg("0.5");
     setImageUrl("");
     setShowForm(true);
   }
@@ -44,6 +46,7 @@ export default function ProductsPage() {
     setName(p.name);
     setDescription(p.description || "");
     setPrice(String(p.price));
+    setWeightKg(String(p.weight_kg));
     setImageUrl(p.image_url);
     setShowForm(true);
   }
@@ -56,6 +59,7 @@ export default function ProductsPage() {
         name,
         description: description || null,
         price: parseFloat(price),
+        weight_kg: parseFloat(weightKg),
         image_url: imageUrl,
       };
       if (editProduct) {
@@ -71,7 +75,7 @@ export default function ProductsPage() {
         setProducts((prev) => [created, ...prev]);
       }
       setShowForm(false);
-    } catch {}
+    } catch { }
     setFormLoading(false);
   }
 
@@ -84,14 +88,14 @@ export default function ProductsPage() {
       setProducts((prev) =>
         prev.map((p) => (p.id === updated.id ? updated : p))
       );
-    } catch {}
+    } catch { }
   }
 
   async function deleteProduct(id: string) {
     try {
       await api.delete(`/api/products/${id}`);
       setProducts((prev) => prev.filter((p) => p.id !== id));
-    } catch {}
+    } catch { }
   }
 
   return (
@@ -117,6 +121,7 @@ export default function ProductsPage() {
               <tr>
                 <th className="px-4 py-3">Product</th>
                 <th className="px-4 py-3">Price</th>
+                <th className="px-4 py-3">Weight (kg)</th>
                 <th className="px-4 py-3">Available</th>
                 <th className="px-4 py-3">Actions</th>
               </tr>
@@ -144,14 +149,14 @@ export default function ProductsPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">{formatNaira(product.price)}</td>
+                  <td className="px-4 py-3 text-gray-500">{product.weight_kg}kg</td>
                   <td className="px-4 py-3">
                     <button
                       onClick={() => toggleAvailability(product)}
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${
-                        product.is_available
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${product.is_available
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
+                        }`}
                     >
                       {product.is_available ? "Available" : "Unavailable"}
                     </button>
@@ -208,6 +213,18 @@ export default function ProductsPage() {
                 required
                 className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
               />
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-500">Weight (kg)</label>
+                <input
+                  placeholder="Weight in kg (e.g. 0.5)"
+                  type="number"
+                  step="0.001"
+                  value={weightKg}
+                  onChange={(e) => setWeightKg(e.target.value)}
+                  required
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
               <input
                 placeholder="Image URL"
                 value={imageUrl}

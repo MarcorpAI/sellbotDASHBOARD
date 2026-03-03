@@ -11,6 +11,7 @@ const navItems = [
   { href: "/dashboard", label: "Overview", icon: "📊" },
   { href: "/dashboard/orders", label: "Orders", icon: "📦" },
   { href: "/dashboard/products", label: "Products", icon: "🏷️" },
+  { href: "/dashboard/shipping", label: "Shipping", icon: "🚚" },
   { href: "/dashboard/conversations", label: "Conversations", icon: "💬" },
   { href: "/dashboard/credits", label: "Credits", icon: "💳" },
   { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
@@ -25,6 +26,11 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [credits, setCredits] = useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -36,10 +42,11 @@ export default function DashboardLayout({
     api
       .get<CreditBalance>("/api/credits/balance")
       .then((d) => setCredits(d.balance))
-      .catch(() => {});
+      .catch(() => { });
   }, [pathname]);
 
   const { businessName } = getAuth();
+  const displayBusinessName = mounted ? (businessName || "Dashboard") : "Dashboard";
 
   function handleLogout() {
     clearAuth();
@@ -58,9 +65,8 @@ export default function DashboardLayout({
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-white shadow-lg transition-transform lg:static lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-white shadow-lg transition-transform lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="flex h-16 items-center justify-between border-b px-4">
           <span className="text-lg font-bold text-primary-600">SellBOT</span>
@@ -77,11 +83,10 @@ export default function DashboardLayout({
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center rounded-md px-3 py-2 text-sm font-medium ${
-                pathname === item.href
-                  ? "bg-primary-50 text-primary-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
+              className={`flex items-center rounded-md px-3 py-2 text-sm font-medium ${pathname === item.href
+                ? "bg-primary-50 text-primary-700"
+                : "text-gray-700 hover:bg-gray-100"
+                }`}
               onClick={() => setSidebarOpen(false)}
             >
               <span className="mr-3">{item.icon}</span>
@@ -111,7 +116,7 @@ export default function DashboardLayout({
             ☰
           </button>
           <div className="text-sm font-medium text-gray-700">
-            {businessName || "Dashboard"}
+            {displayBusinessName}
           </div>
           <div className="flex items-center gap-4">
             {credits !== null && (

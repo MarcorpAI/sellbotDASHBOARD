@@ -15,9 +15,26 @@ export interface Product {
   name: string;
   description: string | null;
   price: number;
+  weight_kg: number;
   image_url: string;
   is_available: boolean;
   created_at: string;
+}
+
+export interface ZoneArea {
+  id: string;
+  zone_id: string;
+  area_name: string;
+}
+
+export interface ShippingZone {
+  id: string;
+  business_id: string;
+  name: string;
+  base_rate: number;
+  per_kg_rate: number;
+  is_active: boolean;
+  areas: ZoneArea[];
 }
 
 export interface Customer {
@@ -77,6 +94,10 @@ export interface AgentConfig {
   business_hours: Record<string, unknown> | null;
   out_of_hours_msg: string | null;
   human_handoff_triggers: string[] | null;
+  escalation_phone: string | null;
+  external_catalog_url: string | null;
+  external_catalog_headers: Record<string, string> | null;
+  use_external_catalog: boolean;
   follow_up_delay_minutes: number;
 }
 

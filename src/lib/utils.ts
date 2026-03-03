@@ -5,7 +5,8 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatNaira(amount: number): string {
-  return `₦${amount.toLocaleString("en-NG")}`;
+  const formatted = amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `₦${formatted}`;
 }
 
 export function formatKobo(kobo: number): string {
@@ -13,21 +14,17 @@ export function formatKobo(kobo: number): string {
 }
 
 export function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-NG", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  const date = new Date(dateStr);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
 export function formatDateTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleString("en-NG", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const date = new Date(dateStr);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const h = date.getHours().toString().padStart(2, "0");
+  const m = date.getMinutes().toString().padStart(2, "0");
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()} ${h}:${m}`;
 }
 
 export function statusColor(status: string): string {
