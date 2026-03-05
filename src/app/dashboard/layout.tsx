@@ -11,6 +11,7 @@ const navItems = [
   { href: "/dashboard", label: "Overview", icon: "📊" },
   { href: "/dashboard/orders", label: "Orders", icon: "📦" },
   { href: "/dashboard/products", label: "Products", icon: "🏷️" },
+  { href: "/dashboard/brain", label: "Business Brain", icon: "🧠" },
   { href: "/dashboard/shipping", label: "Shipping", icon: "🚚" },
   { href: "/dashboard/conversations", label: "Conversations", icon: "💬" },
   { href: "/dashboard/credits", label: "Credits", icon: "💳" },

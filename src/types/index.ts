@@ -70,11 +70,21 @@ export interface Order {
   customer_id: string;
   status: string;
   total_amount: number;
+  shipping_fee: number | null;
+  shipping_zone_name: string | null;
+  delivery_address: string | null;
+  payment_mode: string | null;
   payment_link: string | null;
   payment_ref: string | null;
+  payment_proof_url: string | null;
+  paystack_ref: string | null;
+  virtual_account_no: string | null;
+  virtual_bank_name: string | null;
   delivery_info: Record<string, string> | null;
   created_at: string;
   paid_at: string | null;
+  confirmed_at: string | null;
+  confirmed_by: string | null;
   items: OrderItem[];
 }
 
@@ -84,6 +94,11 @@ export interface OrderItem {
   product_name: string;
   price: number;
   quantity: number;
+}
+
+export interface FAQItem {
+  question: string;
+  answer: string;
 }
 
 export interface AgentConfig {
@@ -98,6 +113,14 @@ export interface AgentConfig {
   external_catalog_url: string | null;
   external_catalog_headers: Record<string, string> | null;
   use_external_catalog: boolean;
+  external_shipping_url: string | null;
+  external_shipping_headers: Record<string, string> | null;
+  use_external_shipping: boolean;
+  external_shipping_field_map: Record<string, string> | null;
+  external_order_webhook_url: string | null;
+  external_order_webhook_secret: string | null;
+  about_business: string | null;
+  faqs: FAQItem[] | null;
   follow_up_delay_minutes: number;
 }
 
@@ -141,4 +164,25 @@ export interface AnalyticsOverview {
   conversations_today: number;
   conversations_week: number;
   conversations_month: number;
+}
+
+export interface PaymentSettings {
+  id: string;
+  business_id: string;
+  paystack_enabled: boolean;
+  paystack_public_key: string | null;
+  virtual_account_enabled: boolean;
+  manual_transfer_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BankAccount {
+  id: string;
+  business_id: string;
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+  is_primary: boolean;
+  created_at: string;
 }

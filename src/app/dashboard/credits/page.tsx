@@ -12,20 +12,40 @@ export default function CreditsPage() {
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
 
+  async function loadData() {
+    setLoading(true);
+    try {
+      const [bal, bun, txs] = await Promise.all([
+        api.get<CreditBalance>("/api/credits/balance"),
+        api.get<CreditBundle[]>("/api/credits/bundles"),
+        api.get<CreditTransaction[]>("/api/credits/transactions"),
+      ]);
+      setBalance(bal.balance);
+      setBundles(bun);
+      setTransactions(txs);
+    } catch { }
+    setLoading(false);
+  }
+
   useEffect(() => {
-    Promise.all([
-      api.get<CreditBalance>("/api/credits/balance"),
-      api.get<CreditBundle[]>("/api/credits/bundles"),
-      api.get<CreditTransaction[]>("/api/credits/transactions"),
-    ])
-      .then(([bal, bun, txs]) => {
-        setBalance(bal.balance);
-        setBundles(bun);
-        setTransactions(txs);
-      })
-      .catch(() => { })
-      .finally(() => setLoading(false));
+    loadData();
   }, []);
+
+  // Poll for balance update if we just opened a payment link
+  useEffect(() => {
+    if (!purchasing) return;
+    const interval = setInterval(() => {
+      api.get<CreditBalance>("/api/credits/balance").then(res => {
+        if (res.balance > balance) {
+          setBalance(res.balance);
+          setPurchasing(false); // Stop polling
+          // Also reload transactions
+          api.get<CreditTransaction[]>("/api/credits/transactions").then(setTransactions);
+        }
+      });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [purchasing, balance]);
 
   async function purchaseBundle(bundleId: string) {
     setPurchasing(true);
@@ -45,7 +65,15 @@ export default function CreditsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">Credits</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Credits</h1>
+        <button
+          onClick={() => loadData()}
+          className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          Refresh Balance
+        </button>
+      </div>
 
       <div className="mb-8 rounded-lg bg-white p-6 shadow-sm text-center">
         <p className="text-sm text-gray-500">Current Balance</p>
