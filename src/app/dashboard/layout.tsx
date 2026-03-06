@@ -21,6 +21,7 @@ import {
   Menu,
   X,
   Coins,
+  Users,
 } from "lucide-react";
 
 interface NavItem {
@@ -142,14 +143,15 @@ export default function DashboardLayout({
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${isActive
-                    ? "bg-primary-500/15 text-primary-400"
-                    : "text-white/50 hover:bg-white/5 hover:text-white"
+                  ? "bg-primary-500/15 text-primary-400"
+                  : "text-white/50 hover:bg-white/5 hover:text-white"
                   }`}
               >
-                <Icon
-                  className={`h-4 w-4 shrink-0 ${isActive ? "text-primary-400" : ""
-                    }`}
-                />
+                {(() => {
+                  let SideIcon = Icon;
+                  if (item.baseId === "orders" && productType === "course") SideIcon = Users;
+                  return <SideIcon className={`h-4 w-4 shrink-0 ${isActive ? "text-primary-400" : ""}`} />;
+                })()}
                 {getNavLabel(item.baseId)}
               </Link>
             );

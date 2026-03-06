@@ -9,6 +9,16 @@ import { useToast } from "@/components/ui/Toast";
 import { CheckCircle, XCircle, X } from "lucide-react";
 
 const STATUSES = ["all", "interested", "pending_payment", "awaiting_confirmation", "paid", "fulfilled", "cancelled", "abandoned"];
+const COURSE_STATUS_LABELS: Record<string, string> = {
+  all: "all",
+  interested: "leads",
+  pending_payment: "awaiting payment",
+  awaiting_confirmation: "confirming",
+  paid: "paid",
+  fulfilled: "enrolled",
+  cancelled: "cancelled",
+  abandoned: "abandoned",
+};
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -16,9 +26,15 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Order | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const { defaultProductType } = getAuth();
-  const isPhysical = defaultProductType === "physical";
   const { toast } = useToast();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const { defaultProductType } = getAuth();
+  const isPhysical = mounted ? defaultProductType === "physical" : true;
 
   useEffect(() => {
     setLoading(true);
@@ -77,7 +93,9 @@ export default function OrdersPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-black text-gray-900">Orders</h1>
+      <h1 className="mb-6 text-2xl font-black text-gray-900">
+        {isPhysical ? "Orders" : "Enrollments"}
+      </h1>
 
       <div className="mb-4 flex gap-2 overflow-x-auto">
         {STATUSES.map((s) => (
@@ -89,7 +107,7 @@ export default function OrdersPage() {
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
           >
-            {s.replace(/_/g, " ")}
+            {isPhysical ? s.replace(/_/g, " ") : COURSE_STATUS_LABELS[s] || s.replace(/_/g, " ")}
           </button>
         ))}
       </div>
@@ -103,10 +121,10 @@ export default function OrdersPage() {
           <table className="w-full text-left text-sm">
             <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
               <tr>
-                <th className="px-4 py-3">Order</th>
+                <th className="px-4 py-3">{isPhysical ? "Order / Customer" : "Enrollment / Name"}</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Payment</th>
-                <th className="px-4 py-3">Total</th>
+                <th className="px-4 py-3">{isPhysical ? "Total" : "Price / Interest"}</th>
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Actions</th>
               </tr>
@@ -114,8 +132,13 @@ export default function OrdersPage() {
             <tbody className="divide-y">
               {orders.map((order) => (
                 <tr key={order.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono text-xs">
-                    {order.id.slice(0, 8)}...
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900">
+                      {order.delivery_info?.name || "Customer"}
+                    </div>
+                    <div className="font-mono text-[10px] text-gray-400">
+                      {order.id.slice(0, 8)} | {order.delivery_info?.phone || "No Phone"}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -153,7 +176,7 @@ export default function OrdersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Order Details</h2>
+              <h2 className="text-lg font-bold">{isPhysical ? "Order Details" : "Enrollment Details"}</h2>
               <button onClick={() => setSelected(null)} className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600">
                 <X className="h-4 w-4" />
               </button>
@@ -167,7 +190,7 @@ export default function OrdersPage() {
                 </span>
               </p>
               <p><strong>Payment Mode:</strong> {paymentModeLabel(selected.payment_mode)}</p>
-              <p><strong>Total:</strong> {formatNaira(selected.total_amount)}</p>
+              <p><strong>{isPhysical ? "Total:" : "Course Fee:"}</strong> {formatNaira(selected.total_amount)}</p>
               {selected.shipping_fee && (
                 <p><strong>Shipping Fee:</strong> {formatNaira(selected.shipping_fee)}</p>
               )}
@@ -204,18 +227,27 @@ export default function OrdersPage() {
                 </div>
               )}
 
-              {isPhysical && selected.shipping_zone_name && (
-                <p><strong>Shipping Zone:</strong> {selected.shipping_zone_name}</p>
-              )}
-              {isPhysical && selected.delivery_address && (
-                <p><strong>Delivery Address:</strong> {selected.delivery_address}</p>
-              )}
-              {isPhysical && selected.delivery_info && (
-                <div>
-                  <strong>Delivery Details:</strong>
-                  <pre className="mt-1 rounded bg-gray-50 p-2 text-xs">
-                    {JSON.stringify(selected.delivery_info, null, 2)}
-                  </pre>
+              {(isPhysical || selected.status === "interested") && selected.delivery_info && (
+                <div className="rounded-xl border border-primary-100 bg-primary-50/30 p-4">
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-primary-700">
+                    Lead / Customer Details
+                  </h3>
+                  <div className="space-y-2">
+                    <p className="flex justify-between">
+                      <span className="text-gray-500">Name:</span>
+                      <span className="font-semibold text-gray-900">{selected.delivery_info.name || "—"}</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span className="text-gray-500">WhatsApp:</span>
+                      <span className="font-semibold text-gray-900">{selected.delivery_info.phone || "—"}</span>
+                    </p>
+                    {isPhysical && selected.delivery_address && (
+                      <p className="flex justify-between">
+                        <span className="text-gray-500">Address:</span>
+                        <span className="font-semibold text-gray-900">{selected.delivery_address}</span>
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
