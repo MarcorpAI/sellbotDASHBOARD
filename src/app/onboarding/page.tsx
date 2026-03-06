@@ -3,9 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { setDefaultProductType } from "@/lib/auth";
 import { formatNaira } from "@/lib/utils";
+import { ProductTypeValue } from "@/types";
 import LocationAutocomplete from "@/components/ui/LocationAutocomplete";
 import ZoneNameAutocomplete from "@/components/ui/ZoneNameAutocomplete";
+
+const BUSINESS_TYPES: { value: ProductTypeValue; label: string; desc: string; icon: string }[] = [
+  { value: "physical", label: "Physical Products", desc: "Clothing, gadgets, food, accessories — anything you ship or deliver", icon: "📦" },
+  { value: "digital", label: "Digital Products", desc: "E-books, software, templates, digital downloads", icon: "💻" },
+  { value: "course", label: "Courses & Services", desc: "Online courses, coaching, consulting, enrollments", icon: "🎓" },
+];
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -13,30 +21,72 @@ export default function OnboardingPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Step 1: WhatsApp
+  // Step 1: Business Type
+  const [businessType, setBusinessType] = useState<ProductTypeValue>("physical");
+
+  // Step 2: WhatsApp
   const [wabaId, setWabaId] = useState("");
   const [phoneNumberId, setPhoneNumberId] = useState("");
   const [accessToken, setAccessToken] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
 
-  // Step 2: Catalog
+  // Step 3: Catalog
   const [catalogType, setCatalogType] = useState<"file" | "api">("file");
   const [catalogFile, setCatalogFile] = useState<File | null>(null);
   const [externalUrl, setExternalUrl] = useState("");
   const [externalApiKey, setExternalApiKey] = useState("");
   const [importResult, setImportResult] = useState<any>(null);
 
-  // Step 3: Shipping
+  // Step 4: Shipping (physical only)
   const [shippingName, setShippingName] = useState("Local Delivery");
   const [baseRate, setBaseRate] = useState("1500");
   const [perKgRate, setPerKgRate] = useState("200");
   const [shippingAreas, setShippingAreas] = useState<string[]>([]);
 
-  // Step 4: Agent config
+  // Step 5: Agent config
   const [greeting, setGreeting] = useState(
     "Hello! Welcome to our store. How can I help you today?"
   );
   const [tone, setTone] = useState("friendly");
+
+  const isPhysical = businessType === "physical";
+  const totalSteps = isPhysical ? 5 : 4;
+  const stepLabels = isPhysical
+    ? ["Business Type", "WhatsApp", "Catalog", "Shipping", "Configure"]
+    : ["Business Type", "WhatsApp", "Catalog", "Configure"];
+
+  // Map display step to actual step index
+  function getActualStep(displayStep: number): number {
+    if (isPhysical) return displayStep;
+    // Non-physical: skip step 4 (shipping)
+    return displayStep >= 4 ? displayStep + 1 : displayStep;
+  }
+
+  function nextStep() {
+    if (isPhysical) {
+      setStep(step + 1);
+    } else {
+      // Skip shipping step (4) for non-physical
+      const next = step + 1;
+      setStep(next === 4 ? 5 : next);
+    }
+  }
+
+  async function saveBusinessType() {
+    setError("");
+    setLoading(true);
+    try {
+      await api.post("/api/onboarding/set-business-type", {
+        default_product_type: businessType,
+      });
+      setDefaultProductType(businessType);
+      setStep(2);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function connectWhatsApp() {
     setError("");
@@ -51,7 +101,7 @@ export default function OnboardingPage() {
       if (res.status === "error") {
         setError(res.message);
       } else {
-        setStep(2);
+        setStep(3);
       }
     } catch (err: any) {
       setError(err.message);
@@ -63,7 +113,7 @@ export default function OnboardingPage() {
   async function setupCatalog() {
     if (catalogType === "api") {
       if (!externalUrl) {
-        setStep(3);
+        nextStep();
         return;
       }
       setError("");
@@ -74,7 +124,7 @@ export default function OnboardingPage() {
           external_catalog_url: externalUrl,
           external_catalog_headers: externalApiKey ? { "X-API-Key": externalApiKey } : null,
         });
-        setStep(3);
+        nextStep();
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -84,7 +134,7 @@ export default function OnboardingPage() {
     }
 
     if (!catalogFile) {
-      setStep(3);
+      nextStep();
       return;
     }
     setError("");
@@ -92,7 +142,7 @@ export default function OnboardingPage() {
     try {
       const res = await api.upload<any>("/api/onboarding/import-catalog", catalogFile);
       setImportResult(res);
-      setStep(3);
+      nextStep();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -110,7 +160,7 @@ export default function OnboardingPage() {
         per_kg_rate: parseFloat(perKgRate),
         areas: shippingAreas,
       });
-      setStep(4);
+      setStep(5);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -131,28 +181,36 @@ export default function OnboardingPage() {
     }
   }
 
+  // Compute display step index (for progress bar)
+  function getDisplayStep(): number {
+    if (isPhysical) return step;
+    if (step >= 5) return 4;
+    return step;
+  }
+  const displayStep = getDisplayStep();
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-lg rounded-lg bg-white p-8 shadow-md">
         <div className="mb-6">
           <div className="flex items-center justify-between">
-            {[1, 2, 3, 4].map((s) => (
+            {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
               <div
                 key={s}
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${s <= step
-                  ? "bg-primary-600 text-white"
-                  : "bg-gray-200 text-gray-500"
-                  }`}
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
+                  s <= displayStep
+                    ? "bg-primary-600 text-white"
+                    : "bg-gray-200 text-gray-500"
+                }`}
               >
                 {s}
               </div>
             ))}
           </div>
           <div className="mt-2 flex justify-between text-[10px] text-gray-500">
-            <span>WhatsApp</span>
-            <span>Catalog</span>
-            <span>Shipping</span>
-            <span>Configure</span>
+            {stepLabels.map((label) => (
+              <span key={label}>{label}</span>
+            ))}
           </div>
         </div>
 
@@ -162,7 +220,46 @@ export default function OnboardingPage() {
           </div>
         )}
 
+        {/* Step 1: Business Type */}
         {step === 1 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">What do you sell?</h2>
+            <p className="text-sm text-gray-600">
+              This helps us tailor your dashboard experience.
+            </p>
+            <div className="space-y-3">
+              {BUSINESS_TYPES.map((bt) => (
+                <button
+                  key={bt.value}
+                  onClick={() => setBusinessType(bt.value)}
+                  className={`w-full rounded-lg border-2 p-4 text-left transition ${
+                    businessType === bt.value
+                      ? "border-primary-500 bg-primary-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{bt.icon}</span>
+                    <div>
+                      <div className="font-medium">{bt.label}</div>
+                      <div className="text-xs text-gray-500">{bt.desc}</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={saveBusinessType}
+              disabled={loading}
+              className="w-full rounded-md bg-primary-600 px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-50"
+            >
+              {loading ? "Saving..." : "Continue"}
+            </button>
+          </div>
+        )}
+
+        {/* Step 2: WhatsApp */}
+        {step === 2 && (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Connect WhatsApp</h2>
             <p className="text-sm text-gray-600">
@@ -201,7 +298,7 @@ export default function OnboardingPage() {
               {loading ? "Connecting..." : "Connect"}
             </button>
             <button
-              onClick={() => setStep(2)}
+              onClick={() => setStep(3)}
               className="w-full text-sm text-gray-500 hover:underline"
             >
               Skip for now
@@ -209,21 +306,26 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {step === 2 && (
+        {/* Step 3: Catalog */}
+        {step === 3 && (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Product Catalog</h2>
+            <h2 className="text-lg font-semibold">
+              {isPhysical ? "Product Catalog" : businessType === "course" ? "Your Courses" : "Your Digital Products"}
+            </h2>
             <div className="flex rounded-md bg-gray-100 p-1">
               <button
                 onClick={() => setCatalogType("file")}
-                className={`flex-1 rounded-md py-1.5 text-xs font-medium ${catalogType === "file" ? "bg-white shadow-sm" : "text-gray-500"
-                  }`}
+                className={`flex-1 rounded-md py-1.5 text-xs font-medium ${
+                  catalogType === "file" ? "bg-white shadow-sm" : "text-gray-500"
+                }`}
               >
                 CSV Upload
               </button>
               <button
                 onClick={() => setCatalogType("api")}
-                className={`flex-1 rounded-md py-1.5 text-xs font-medium ${catalogType === "api" ? "bg-white shadow-sm" : "text-gray-500"
-                  }`}
+                className={`flex-1 rounded-md py-1.5 text-xs font-medium ${
+                  catalogType === "api" ? "bg-white shadow-sm" : "text-gray-500"
+                }`}
               >
                 External API (v2)
               </button>
@@ -232,7 +334,9 @@ export default function OnboardingPage() {
             {catalogType === "file" ? (
               <>
                 <p className="text-sm text-gray-600">
-                  Upload a CSV file with columns: name, description, price, image_url, weight_kg
+                  {isPhysical
+                    ? "Upload a CSV file with columns: name, description, price, image_url, weight_kg"
+                    : "Upload a CSV file with columns: name, description, price, image_url"}
                 </p>
                 <input
                   type="file"
@@ -281,7 +385,8 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {step === 3 && (
+        {/* Step 4: Shipping (physical only) */}
+        {step === 4 && isPhysical && (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Set Up Delivery</h2>
             <p className="text-sm text-gray-600">
@@ -337,7 +442,8 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {step === 4 && (
+        {/* Step 5: Agent Config */}
+        {step === 5 && (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Configure Agent</h2>
             <div>

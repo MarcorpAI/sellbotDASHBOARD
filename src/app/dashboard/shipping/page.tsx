@@ -6,6 +6,7 @@ import { formatNaira } from "@/lib/utils";
 import { ShippingZone, AgentConfig } from "@/types";
 import LocationAutocomplete from "@/components/ui/LocationAutocomplete";
 import ZoneNameAutocomplete from "@/components/ui/ZoneNameAutocomplete";
+import { useToast } from "@/components/ui/Toast";
 
 export default function ShippingPage() {
     const [zones, setZones] = useState<ShippingZone[]>([]);
@@ -40,6 +41,7 @@ export default function ShippingPage() {
     const [sampleZone, setSampleZone] = useState<Record<string, unknown> | null>(null);
     const [testing, setTesting] = useState(false);
     const [testMessage, setTestMessage] = useState("");
+    const { toast } = useToast();
 
     useEffect(() => {
         loadZones();
@@ -50,7 +52,7 @@ export default function ShippingPage() {
         api
             .get<ShippingZone[]>("/api/shipping-zones")
             .then(setZones)
-            .catch(() => { })
+            .catch(() => toast("Failed to load shipping zones"))
             .finally(() => setLoading(false));
     }
 
@@ -66,7 +68,7 @@ export default function ShippingPage() {
                     setFieldMap((prev) => ({ ...prev, ...c.external_shipping_field_map }));
                 }
             })
-            .catch(() => { });
+            .catch(() => toast("Failed to load shipping config"));
     }
 
     async function handleSaveConfig(e: React.FormEvent) {
@@ -263,7 +265,7 @@ export default function ShippingPage() {
                                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
                                     <h3 className="text-sm font-semibold text-gray-800">Field Mapping</h3>
                                     <p className="text-xs text-gray-500">
-                                        Tell SellBOT which fields in your API correspond to each value.
+                                        Tell AZERRA which fields in your API correspond to each value.
                                         {detectedFields.length > 0 && " We detected the fields from your API — select the right ones."}
                                     </p>
 

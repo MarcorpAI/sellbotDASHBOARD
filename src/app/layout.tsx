@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SellBOT - Dashboard",
+  title: "AZERRA - Dashboard",
   description: "WhatsApp Sales Automation Dashboard",
 };
 

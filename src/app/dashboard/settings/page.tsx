@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { AgentConfig, PaymentSettings, BankAccount } from "@/types";
+import { getAuth, setDefaultProductType } from "@/lib/auth";
+import { AgentConfig, PaymentSettings, BankAccount, ProductTypeValue } from "@/types";
 import { QRCodeSVG } from "qrcode.react";
+import { useToast } from "@/components/ui/Toast";
 
 export default function SettingsPage() {
   const [config, setConfig] = useState<AgentConfig | null>(null);
@@ -29,8 +31,11 @@ export default function SettingsPage() {
   const [paySaving, setPaySaving] = useState(false);
   const [payMessage, setPayMessage] = useState("");
   const [paystackEnabled, setPaystackEnabled] = useState(false);
-  const [paystackSecretKey, setPaystackSecretKey] = useState("");
-  const [paystackPublicKey, setPaystackPublicKey] = useState("");
+  const [hasSubaccount, setHasSubaccount] = useState(false);
+  const [payoutBankCode, setPayoutBankCode] = useState("");
+  const [payoutBankName, setPayoutBankName] = useState("");
+  const [payoutAccountNumber, setPayoutAccountNumber] = useState("");
+  const [payoutAccountName, setPayoutAccountName] = useState("");
   const [virtualAccountEnabled, setVirtualAccountEnabled] = useState(false);
   const [manualTransferEnabled, setManualTransferEnabled] = useState(false);
 
@@ -41,6 +46,14 @@ export default function SettingsPage() {
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [accountName, setAccountName] = useState("");
+
+  // Business type
+  const { defaultProductType: savedType } = getAuth();
+  const [businessType, setBusinessType] = useState<ProductTypeValue>(savedType);
+  const [typeSaving, setTypeSaving] = useState(false);
+  const [typeMessage, setTypeMessage] = useState("");
+
+  const { toast } = useToast();
 
   // WhatsApp Bridge state
   const [bridgeStatus, setBridgeStatus] = useState<string>("disconnected");
@@ -65,7 +78,7 @@ export default function SettingsPage() {
         setExternalOrderWebhookUrl(c.external_order_webhook_url || "");
         setExternalOrderWebhookSecret(c.external_order_webhook_secret || "");
       })
-      .catch(() => { })
+      .catch(() => toast("Failed to load settings"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -76,11 +89,14 @@ export default function SettingsPage() {
       .then((ps) => {
         setPaySettings(ps);
         setPaystackEnabled(ps.paystack_enabled);
-        setPaystackPublicKey(ps.paystack_public_key || "");
+
+        // This is a custom field passed from backend via `__dict__` manipulation
+        setHasSubaccount((ps as any).has_subaccount || false);
+
         setVirtualAccountEnabled(ps.virtual_account_enabled);
         setManualTransferEnabled(ps.manual_transfer_enabled);
       })
-      .catch(() => { })
+      .catch(() => toast("Failed to load payment settings"))
       .finally(() => setPayLoading(false));
   }, []);
 
@@ -89,7 +105,7 @@ export default function SettingsPage() {
     api
       .get<BankAccount[]>("/api/bank-accounts")
       .then(setBankAccounts)
-      .catch(() => { })
+      .catch(() => toast("Failed to load bank accounts"))
       .finally(() => setBankLoading(false));
   }, []);
 
@@ -171,19 +187,37 @@ export default function SettingsPage() {
     try {
       const payload: Record<string, unknown> = {
         paystack_enabled: paystackEnabled,
-        paystack_public_key: paystackPublicKey || null,
         virtual_account_enabled: virtualAccountEnabled,
         manual_transfer_enabled: manualTransferEnabled,
       };
-      if (paystackSecretKey) {
-        payload.paystack_secret_key = paystackSecretKey;
-      }
       const updated = await api.put<PaymentSettings>("/api/payment-settings", payload);
       setPaySettings(updated);
-      setPaystackSecretKey(""); // Clear after save
       setPayMessage("Payment settings saved.");
     } catch {
       setPayMessage("Failed to save payment settings.");
+    }
+    setPaySaving(false);
+  }
+
+  // Create Subaccount
+  async function handleCreateSubaccount() {
+    if (!payoutBankName || !payoutAccountNumber || !payoutAccountName) {
+      alert("Please fill in all bank details.");
+      return;
+    }
+    setPaySaving(true);
+    setPayMessage("");
+    try {
+      await api.post("/api/payment-settings/subaccount", {
+        bank_code: payoutBankName, // Can map names to codes later if needed
+        account_number: payoutAccountNumber,
+        account_name: payoutAccountName,
+      });
+      setHasSubaccount(true);
+      setPayMessage("Bank details saved successfully!");
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || "Failed to save bank details.";
+      setPayMessage(msg);
     }
     setPaySaving(false);
   }
@@ -214,11 +248,72 @@ export default function SettingsPage() {
     } catch { }
   }
 
+  async function handleSaveBusinessType() {
+    setTypeSaving(true);
+    setTypeMessage("");
+    try {
+      await api.post("/api/onboarding/set-business-type", {
+        default_product_type: businessType,
+      });
+      setDefaultProductType(businessType);
+      setTypeMessage("Business type updated. Reload to see changes.");
+    } catch {
+      setTypeMessage("Failed to update business type.");
+    }
+    setTypeSaving(false);
+  }
+
   if (loading) return <p className="text-gray-500">Loading...</p>;
 
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">Settings</h1>
+
+      {/* =================== BUSINESS TYPE =================== */}
+      <div className="mb-8 max-w-xl rounded-lg bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">Business Type</h2>
+        <p className="mb-3 text-sm text-gray-600">
+          What kind of products do you sell? This adapts your dashboard experience.
+        </p>
+        <div className="space-y-2">
+          {([
+            { value: "physical" as ProductTypeValue, label: "Physical Products", desc: "Shipped or delivered items", icon: "📦" },
+            { value: "digital" as ProductTypeValue, label: "Digital Products", desc: "Downloads, licenses, digital files", icon: "💻" },
+            { value: "course" as ProductTypeValue, label: "Courses & Services", desc: "Online courses, coaching, enrollments", icon: "🎓" },
+          ]).map((bt) => (
+            <button
+              key={bt.value}
+              onClick={() => setBusinessType(bt.value)}
+              className={`w-full rounded-lg border-2 p-3 text-left transition ${businessType === bt.value
+                  ? "border-primary-500 bg-primary-50"
+                  : "border-gray-200 hover:border-gray-300"
+                }`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-xl">{bt.icon}</span>
+                <div>
+                  <div className="text-sm font-medium">{bt.label}</div>
+                  <div className="text-xs text-gray-500">{bt.desc}</div>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+        {businessType !== savedType && (
+          <button
+            onClick={handleSaveBusinessType}
+            disabled={typeSaving}
+            className="mt-3 rounded-md bg-primary-600 px-4 py-2 text-sm text-white hover:bg-primary-700 disabled:opacity-50"
+          >
+            {typeSaving ? "Saving..." : "Save Business Type"}
+          </button>
+        )}
+        {typeMessage && (
+          <p className={`mt-2 text-sm ${typeMessage.includes("Failed") ? "text-red-600" : "text-green-600"}`}>
+            {typeMessage}
+          </p>
+        )}
+      </div>
 
       {/* =================== WHATSAPP CONNECTION =================== */}
       <div className="mb-8 max-w-xl rounded-lg bg-white p-6 shadow-sm">
@@ -232,7 +327,7 @@ export default function SettingsPage() {
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Link your WhatsApp account to start using SellBOT. No Meta API setup required for testing.
+              Link your WhatsApp account to start using AZERRA. No Meta API setup required for testing.
             </p>
 
             {bridgeQr ? (
@@ -383,7 +478,7 @@ export default function SettingsPage() {
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                   />
                   <p className="mt-1 text-xs text-gray-400">
-                    The endpoint SellBOT should call to fetch your products.
+                    The endpoint AZERRA should call to fetch your products.
                   </p>
                 </div>
 
@@ -420,7 +515,7 @@ export default function SettingsPage() {
                   className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 />
                 <p className="mt-1 text-xs text-gray-400">
-                  SellBOT will POST order data to this URL whenever a purchase is confirmed.
+                  AZERRA will POST order data to this URL whenever a purchase is confirmed.
                 </p>
               </div>
 
@@ -486,28 +581,74 @@ export default function SettingsPage() {
               </div>
 
               {paystackEnabled && (
-                <div className="space-y-3 pl-6 border-l-2 border-primary-100">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Secret Key</label>
-                    <input
-                      type="password"
-                      value={paystackSecretKey}
-                      onChange={(e) => setPaystackSecretKey(e.target.value)}
-                      placeholder={paySettings?.paystack_public_key ? "••••••• (already set)" : "sk_live_..."}
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                    />
-                    <p className="mt-1 text-xs text-gray-400">Encrypted at rest. Leave blank to keep existing key.</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Public Key</label>
-                    <input
-                      type="text"
-                      value={paystackPublicKey}
-                      onChange={(e) => setPaystackPublicKey(e.target.value)}
-                      placeholder="pk_live_..."
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                    />
-                  </div>
+                <div className="space-y-4 pl-6 border-l-2 border-primary-100 mb-6">
+
+                  {hasSubaccount ? (
+                    <div className="rounded-md bg-green-50 p-4 border border-green-100">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 text-green-500">
+                          <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3 text-sm text-green-700">
+                          <p className="font-medium">Bank Details Connected</p>
+                          <p className="mt-1 text-xs text-green-600">You are ready to receive automatic payouts.</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border border-gray-200 p-4 space-y-4 bg-gray-50">
+                      <h3 className="text-sm font-medium text-gray-900">Bank Details for Payouts</h3>
+                      <p className="text-xs text-gray-500 mb-4">
+                        Please provide the Nigerian bank account where earnings will be sent automatically.
+                      </p>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Bank Name (or Code)</label>
+                          <input
+                            type="text"
+                            value={payoutBankName}
+                            onChange={(e) => setPayoutBankName(e.target.value)}
+                            placeholder="e.g. 058 or Guaranty Trust Bank"
+                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Account Number</label>
+                          <input
+                            type="text"
+                            value={payoutAccountNumber}
+                            onChange={(e) => setPayoutAccountNumber(e.target.value)}
+                            placeholder="0123456789"
+                            maxLength={10}
+                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Account Name</label>
+                          <input
+                            type="text"
+                            value={payoutAccountName}
+                            onChange={(e) => setPayoutAccountName(e.target.value)}
+                            placeholder="John Doe Enterprises"
+                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCreateSubaccount}
+                          disabled={paySaving || !payoutBankName || !payoutAccountNumber || !payoutAccountName}
+                          className="mt-2 w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50"
+                        >
+                          {paySaving ? "Saving..." : "Save Bank Details"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <hr className="my-4 border-gray-200" />
 
                   {/* Virtual Account */}
                   <div className="flex items-center mt-4">

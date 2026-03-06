@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { AgentConfig, FAQItem } from "@/types";
+import { useToast } from "@/components/ui/Toast";
 
 export default function BusinessBrainPage() {
     const [config, setConfig] = useState<AgentConfig | null>(null);
@@ -10,6 +11,7 @@ export default function BusinessBrainPage() {
     const [faqs, setFaqs] = useState<FAQItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const { toast } = useToast();
 
     useEffect(() => {
         api
@@ -19,7 +21,7 @@ export default function BusinessBrainPage() {
                 setAboutBusiness(data.about_business || "");
                 setFaqs(data.faqs || []);
             })
-            .catch(() => { })
+            .catch(() => toast("Failed to load business brain config"))
             .finally(() => setLoading(false));
     }, []);
 

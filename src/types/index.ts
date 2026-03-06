@@ -1,3 +1,5 @@
+export type ProductTypeValue = "physical" | "digital" | "course";
+
 export interface Business {
   id: string;
   name: string;
@@ -6,6 +8,7 @@ export interface Business {
   waba_id: string | null;
   phone_number_id: string | null;
   is_active: boolean;
+  default_product_type: ProductTypeValue;
   created_at: string;
 }
 
@@ -18,6 +21,9 @@ export interface Product {
   weight_kg: number;
   image_url: string;
   is_available: boolean;
+  product_type: ProductTypeValue;
+  attributes?: Record<string, any> | null;
+  cta_url: string | null;
   created_at: string;
 }
 
@@ -152,6 +158,7 @@ export interface TokenResponse {
   token_type: string;
   business_id: string;
   business_name: string;
+  default_product_type: ProductTypeValue;
 }
 
 export interface AnalyticsOverview {

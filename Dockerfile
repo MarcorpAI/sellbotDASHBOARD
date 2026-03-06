@@ -1,12 +1,31 @@
-FROM node:20-alpine
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm ci
 
 COPY . .
 
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
+RUN npm run build
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+RUN adduser -D -r sellbot
+USER sellbot
+
+COPY --from=builder --chown=sellbot:sellbot /app/.next/standalone ./
+COPY --from=builder --chown=sellbot:sellbot /app/.next/static ./.next/static
+COPY --from=builder --chown=sellbot:sellbot /app/public ./public
+
 EXPOSE 3000
 
-CMD ["npm", "run", "dev"]
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]

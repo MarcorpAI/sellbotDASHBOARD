@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { formatDateTime, statusColor } from "@/lib/utils";
 import { Conversation, Message } from "@/types";
+import { useToast } from "@/components/ui/Toast";
+import { Send } from "lucide-react";
 
 export default function ConversationsPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -12,12 +14,13 @@ export default function ConversationsPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     api
       .get<Conversation[]>("/api/conversations")
       .then(setConversations)
-      .catch(() => { })
+      .catch(() => toast("Failed to load conversations"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -48,7 +51,7 @@ export default function ConversationsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">Conversations</h1>
+      <h1 className="mb-6 text-2xl font-black text-gray-900">Conversations</h1>
 
       <div className="flex gap-4">
         {/* Conversation list */}
@@ -127,10 +130,10 @@ export default function ConversationsPage() {
                   <div
                     key={msg.id}
                     className={`max-w-[80%] rounded-lg p-3 text-sm ${msg.role === "customer"
-                        ? "bg-gray-100 self-start"
-                        : msg.role === "agent"
-                          ? "bg-primary-100 ml-auto"
-                          : "bg-yellow-50 mx-auto text-center text-xs"
+                      ? "bg-gray-100 self-start"
+                      : msg.role === "agent"
+                        ? "bg-primary-100 ml-auto"
+                        : "bg-yellow-50 mx-auto text-center text-xs"
                       }`}
                   >
                     <p className="text-xs font-medium text-gray-500 mb-1">
@@ -161,8 +164,9 @@ export default function ConversationsPage() {
                   <button
                     onClick={sendReply}
                     disabled={sending || !reply.trim()}
-                    className="rounded-md bg-primary-600 px-4 py-2 text-sm text-white hover:bg-primary-700 disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-xl bg-primary-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50"
                   >
+                    <Send className="h-3.5 w-3.5" />
                     Send
                   </button>
                 </div>

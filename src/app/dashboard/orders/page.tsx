@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { getAuth } from "@/lib/auth";
 import { formatNaira, formatDateTime, statusColor } from "@/lib/utils";
 import { Order } from "@/types";
+import { useToast } from "@/components/ui/Toast";
+import { CheckCircle, XCircle, X } from "lucide-react";
 
-const STATUSES = ["all", "pending_payment", "awaiting_confirmation", "paid", "fulfilled", "cancelled", "abandoned"];
+const STATUSES = ["all", "interested", "pending_payment", "awaiting_confirmation", "paid", "fulfilled", "cancelled", "abandoned"];
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -13,6 +16,9 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Order | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const { defaultProductType } = getAuth();
+  const isPhysical = defaultProductType === "physical";
+  const { toast } = useToast();
 
   useEffect(() => {
     setLoading(true);
@@ -20,7 +26,7 @@ export default function OrdersPage() {
     api
       .get<Order[]>(`/api/orders${params}`)
       .then(setOrders)
-      .catch(() => { })
+      .catch(() => toast("Failed to load orders"))
       .finally(() => setLoading(false));
   }, [filter]);
 
@@ -71,7 +77,7 @@ export default function OrdersPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">Orders</h1>
+      <h1 className="mb-6 text-2xl font-black text-gray-900">Orders</h1>
 
       <div className="mb-4 flex gap-2 overflow-x-auto">
         {STATUSES.map((s) => (
@@ -79,8 +85,8 @@ export default function OrdersPage() {
             key={s}
             onClick={() => setFilter(s)}
             className={`rounded-full px-3 py-1 text-sm capitalize whitespace-nowrap ${filter === s
-                ? "bg-primary-600 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              ? "bg-primary-600 text-white"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
           >
             {s.replace(/_/g, " ")}
@@ -147,9 +153,9 @@ export default function OrdersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Order Details</h2>
-              <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600">
-                ✕
+              <h2 className="text-lg font-bold">Order Details</h2>
+              <button onClick={() => setSelected(null)} className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600">
+                <X className="h-4 w-4" />
               </button>
             </div>
 
@@ -198,9 +204,15 @@ export default function OrdersPage() {
                 </div>
               )}
 
-              {selected.delivery_info && (
+              {isPhysical && selected.shipping_zone_name && (
+                <p><strong>Shipping Zone:</strong> {selected.shipping_zone_name}</p>
+              )}
+              {isPhysical && selected.delivery_address && (
+                <p><strong>Delivery Address:</strong> {selected.delivery_address}</p>
+              )}
+              {isPhysical && selected.delivery_info && (
                 <div>
-                  <strong>Delivery:</strong>
+                  <strong>Delivery Details:</strong>
                   <pre className="mt-1 rounded bg-gray-50 p-2 text-xs">
                     {JSON.stringify(selected.delivery_info, null, 2)}
                   </pre>
@@ -224,16 +236,18 @@ export default function OrdersPage() {
                   <button
                     onClick={() => confirmPayment(selected.id)}
                     disabled={actionLoading}
-                    className="flex-1 rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50"
                   >
-                    {actionLoading ? "…" : "✅ Confirm Payment"}
+                    <CheckCircle className="h-4 w-4" />
+                    {actionLoading ? "Processing…" : "Confirm Payment"}
                   </button>
                   <button
                     onClick={() => rejectPayment(selected.id)}
                     disabled={actionLoading}
-                    className="flex-1 rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
                   >
-                    {actionLoading ? "…" : "❌ Reject Proof"}
+                    <XCircle className="h-4 w-4" />
+                    {actionLoading ? "Processing…" : "Reject Proof"}
                   </button>
                 </div>
               )}
@@ -243,7 +257,7 @@ export default function OrdersPage() {
                   onClick={() => updateStatus(selected.id, "fulfilled")}
                   className="mt-4 w-full rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700"
                 >
-                  Mark as Fulfilled
+                  {isPhysical ? "Mark as Fulfilled" : "Mark as Completed"}
                 </button>
               )}
             </div>

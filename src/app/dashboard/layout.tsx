@@ -5,17 +5,41 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { isAuthenticated, getAuth, clearAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
-import { CreditBalance } from "@/types";
+import { CreditBalance, ProductTypeValue } from "@/types";
+import { ToastProvider } from "@/components/ui/Toast";
+import {
+  LayoutDashboard,
+  Package,
+  Tag,
+  Brain,
+  Truck,
+  MessageSquare,
+  Wallet,
+  Settings,
+  Code2,
+  LogOut,
+  Menu,
+  X,
+  Coins,
+} from "lucide-react";
 
-const navItems = [
-  { href: "/dashboard", label: "Overview", icon: "📊" },
-  { href: "/dashboard/orders", label: "Orders", icon: "📦" },
-  { href: "/dashboard/products", label: "Products", icon: "🏷️" },
-  { href: "/dashboard/brain", label: "Business Brain", icon: "🧠" },
-  { href: "/dashboard/shipping", label: "Shipping", icon: "🚚" },
-  { href: "/dashboard/conversations", label: "Conversations", icon: "💬" },
-  { href: "/dashboard/credits", label: "Credits", icon: "💳" },
-  { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  physicalOnly?: boolean;
+}
+
+const allNavItems: (Omit<NavItem, "label"> & { baseId: string })[] = [
+  { href: "/dashboard", baseId: "overview", icon: LayoutDashboard },
+  { href: "/dashboard/orders", baseId: "orders", icon: Package },
+  { href: "/dashboard/products", baseId: "products", icon: Tag },
+  { href: "/dashboard/brain", baseId: "brain", icon: Brain },
+  { href: "/dashboard/shipping", baseId: "shipping", icon: Truck, physicalOnly: true },
+  { href: "/dashboard/conversations", baseId: "conversations", icon: MessageSquare },
+  { href: "/dashboard/credits", baseId: "credits", icon: Wallet },
+  { href: "/dashboard/settings", baseId: "settings", icon: Settings },
+  { href: "/dashboard/developers", baseId: "developers", icon: Code2 },
 ];
 
 export default function DashboardLayout({
@@ -29,14 +53,10 @@ export default function DashboardLayout({
   const [credits, setCredits] = useState<number | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      router.replace("/login");
-    }
+    if (!isAuthenticated()) router.replace("/login");
   }, [router]);
 
   useEffect(() => {
@@ -46,8 +66,37 @@ export default function DashboardLayout({
       .catch(() => { });
   }, [pathname]);
 
-  const { businessName } = getAuth();
-  const displayBusinessName = mounted ? (businessName || "Dashboard") : "Dashboard";
+  const { businessName, defaultProductType } = getAuth();
+  const displayBusinessName = mounted ? businessName || "Dashboard" : "Dashboard";
+  const productType: ProductTypeValue = mounted ? defaultProductType : "physical";
+
+  const navItems = allNavItems.filter(
+    (item) => !item.physicalOnly || productType === "physical"
+  );
+
+  const typeLabel: Record<ProductTypeValue, string> = {
+    physical: "Physical",
+    digital: "Digital",
+    course: "Courses",
+  };
+
+  const getNavLabel = (baseId: string): string => {
+    switch (baseId) {
+      case "overview": return "Overview";
+      case "brain": return "Business Brain";
+      case "shipping": return "Shipping";
+      case "conversations": return "Conversations";
+      case "credits": return "Credits";
+      case "settings": return "Settings";
+      case "developers": return "Developers";
+      case "orders":
+        return productType === "course" ? "Enrollments" : productType === "digital" ? "Sales" : "Orders";
+      case "products":
+        return typeLabel[productType];
+      default:
+        return "Unknown";
+    }
+  };
 
   function handleLogout() {
     clearAuth();
@@ -55,81 +104,104 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen font-sans">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-20 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-20 bg-black/60 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-white shadow-lg transition-transform lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-30 flex w-64 flex-col bg-surface-900 transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
           }`}
       >
-        <div className="flex h-16 items-center justify-between border-b px-4">
-          <span className="text-lg font-bold text-primary-600">SellBOT</span>
+        {/* Logo */}
+        <div className="flex h-16 items-center justify-between border-b border-white/5 px-5">
+          <span className="text-lg font-black tracking-tight text-white">
+            AZ<span className="text-primary-500">ER</span>RA
+          </span>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden"
+            className="rounded-md p-1 text-white/40 transition hover:text-white lg:hidden"
           >
-            ✕
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <nav className="mt-4 space-y-1 px-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center rounded-md px-3 py-2 text-sm font-medium ${pathname === item.href
-                ? "bg-primary-50 text-primary-700"
-                : "text-gray-700 hover:bg-gray-100"
-                }`}
-              onClick={() => setSidebarOpen(false)}
-            >
-              <span className="mr-3">{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
+        {/* Nav */}
+        <nav className="mt-3 flex-1 space-y-0.5 px-3">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${isActive
+                    ? "bg-primary-500/15 text-primary-400"
+                    : "text-white/50 hover:bg-white/5 hover:text-white"
+                  }`}
+              >
+                <Icon
+                  className={`h-4 w-4 shrink-0 ${isActive ? "text-primary-400" : ""
+                    }`}
+                />
+                {getNavLabel(item.baseId)}
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className="absolute bottom-0 w-full border-t p-4">
+        {/* Logout */}
+        <div className="border-t border-white/5 p-3">
           <button
             onClick={handleLogout}
-            className="w-full rounded-md px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-100"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/40 transition hover:bg-white/5 hover:text-white"
           >
+            <LogOut className="h-4 w-4" />
             Log out
           </button>
         </div>
       </aside>
 
       {/* Main content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top bar */}
-        <header className="flex h-16 items-center justify-between border-b bg-white px-4 lg:px-6">
+      <div className="flex flex-1 flex-col overflow-hidden bg-offwhite">
+        {/* Topbar */}
+        <header className="flex h-16 items-center justify-between border-b border-gray-200/70 bg-white px-4 lg:px-6">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden"
+            className="rounded-lg p-1.5 text-gray-500 transition hover:bg-gray-100 lg:hidden"
           >
-            ☰
+            <Menu className="h-5 w-5" />
           </button>
-          <div className="text-sm font-medium text-gray-700">
-            {displayBusinessName}
-          </div>
-          <div className="flex items-center gap-4">
-            {credits !== null && (
-              <div className="rounded-full bg-primary-50 px-3 py-1 text-sm font-medium text-primary-700">
-                {credits} credits
-              </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-800">
+              {displayBusinessName}
+            </span>
+            {mounted && productType !== "physical" && (
+              <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-bold text-primary-600">
+                {typeLabel[productType]}
+              </span>
             )}
           </div>
+
+          {credits !== null && (
+            <div className="flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700">
+              <Coins className="h-3.5 w-3.5" />
+              {credits} credits
+            </div>
+          )}
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <ToastProvider>{children}</ToastProvider>
+        </main>
       </div>
     </div>
   );

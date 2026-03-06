@@ -39,6 +39,7 @@ export function statusColor(status: string): string {
     escalated: "bg-red-100 text-red-800",
     abandoned: "bg-gray-100 text-gray-800",
     cancelled: "bg-red-100 text-red-800",
+    interested: "bg-purple-100 text-purple-800",
   };
   return colors[status] || "bg-gray-100 text-gray-800";
 }
